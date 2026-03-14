@@ -23,8 +23,8 @@ Keywords: Home Assistant HA - APsystem EZ1 EZ1-M - Microinverter - Microwechselr
 Platform | Beschreibung
 -- | --
 `sensor` | Sensor Daten des Microwechselrichters
-'binary' | Binär Daten des Microwechselrichters
-'switch' | Schalter zum Ein- / Ausschalten des Wechselrichters
+`binary` | Binär Daten des Microwechselrichters
+`switch` | Schalter zum Ein- / Ausschalten des Wechselrichters
 
 ## Einführung
 
