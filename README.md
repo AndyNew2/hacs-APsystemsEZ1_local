@@ -44,5 +44,10 @@ Platform | Beschreibung
 
 
 
-
-https://www.home-assistant.io/integrations/apsystems/
+[commits-shield]: https://img.shields.io/github/commit-activity/y/AndyNew2/hacs-APsystemsEZ1_local.svg?style=for-the-badge
+[commits]: https://github.com/AndyNew2/hacs-APsystemsEZ1_local/commits/master
+[hacs]: https://github.com/hacs/integration
+[hacsbadge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/AndyNew2/hacs-APsystemsEZ1_local.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/AndyNew2/hacs-APsystemsEZ1_local.svg?style=for-the-badge
+[releases]: https://github.com/AndyNew2/hacs-APsystemsEZ1_local/releases
