@@ -18,7 +18,7 @@ Keywords: Home Assistant HA - APsystem EZ1 EZ1-M - Microinverter - Microwechselr
 > [!NOTE]
 > Diese Integration basiert auf der Home Assistant Core integration von [https://www.home-assistant.io/integrations/apsystems] und dem [EZ1-M Python code von https://github.com/SonnenladenGmbH/APsystems-EZ1-API]. Diese Integration beinhaltet die Python API, ein Requirement und Nachladen ist nicht nötig.
 
-**This component will set up the following platforms.**
+**Diese Integration implementiert folgende HA platforms:**
 
 Platform | Beschreibung
 -- | --
