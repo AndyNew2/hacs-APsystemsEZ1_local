@@ -41,8 +41,45 @@ Platform | Beschreibung
 9. Die Alarminformationen werden nicht bei jedem Update-Zyklus gelesen, um die Updaterate zu verbessern.
 10. Die Updaterate kann wieder im Konfigurations-Dialog eingegeben werden. Die Integration unterstützt jetzt auch ein Reconfigure, damit kann man die Konfiguration ohne Löschen und neu anlegen korrigieren.
 
+## Installation
 
+### Installation mit HACS Repository (Empfohlen)
 
+[![Öffnen Sie Ihr Home Assistant und gehen Sie in das Repository im Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=AndyNew2&repository=hacs-APsystemEZ1_local&category=integration)
+
+1. Installieren Sie HACS [HACS](https://hacs.xyz/) und führen Sie das zugehörige Setup aus.
+2. Gehen Sie in HACS und selektieren "Integrations".
+3. Fügen Sie `AndyNew2/hacs-APsystemsEZ1_local` ein, mit der Kathegorie "Integration" als ein [Benutzer Repository](https://hacs.xyz/docs/faq/custom_repositories/). Oder einfacher, benutzen Sie einfach den Link nach "Installation mit HACS Repository (Empfohlen)".
+4. Wählen Sie "APsystems Local API" von der Liste und klicken auf "Download". Oder benutzen Sie den Link unten einfach ;-)
+5. Anschließend müssen Sie Home Assistant neu starten, damit die Integration verfügbar wird.
+
+### Installation der Integration APsystems Local API
+
+[![Hinzufügen der Integration zu Home Assistant!](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=apsystemsapi_local)
+
+Die integration erscheint nun wie jede andere Home Assistant integration. Die ursprüngliche HA APsystems Core integration wird durch diese Integration ersetzt.
+Sie müssen jedoch wie oben beschrieben Home Assistant einmal neu starten.
+
+Nun können wir unseren Wechselrichter hinzufügen mit dem Konfigurations-Dialog:
+
+1. In der HA GUI gehen Sie zu "Einstellungen" -> "Geräte & Dienste". Unten rechts klicken Sie auf "Integration hinzufügen". Dann suchen Sie nach APsystems Local API (nicht die APSystems nehmen). Oder benutzen Sie einfach den Link oben.
+2. Gehen Sie durch den Konfig-Dialog, anschließend ist Ihr Wechselrichter in Home Assistant eingerichtet.
+
+### Manual Installation
+
+Erzeugen Sie ein Unterverzeichnis in homeassistant/custom_components
+1. Ein Unterverzeichnis mit dem Namen "apsystemapi_local"
+2. Kopieren Sie alle Files hier in dieses Verzeichnis auch mit dem Unterverzeichnis translations.
+3. Neustart von Home Assistant
+4. In den Geräten, suchen Sie nun "APsystems Local API". Konfiguration nach dem Konfig-Dialog, wie unten beschrieben.
+ 
+### Konfiguration mit dem Config-Flow
+1. Sie müssen die IP Address Ihres Wechselrichters eingeben. Bitte sorgen Sie für eine statische Adresse. Der Wechselrichter selbst kann es leider nicht, deshalb müssen Sie es mit Hilfe Ihres Routers (z.B. FritzBox) so einrichten, dass der WR immer die gleiche IP-Adresse bekommt.
+2. Die Port-Nummer sollte 8050 sein und ist schon vorausgefüllt, einfach so lassen.
+3. Update-Intervall in Sekunden. Je kleiner der Werte umso öfters werden die Werte aktualisiert. 15 Sekunden sind standard. Weniger wie 5 Sekunden werden nicht empfohlen, weil dies die Integration und HA zu sehr stresst. Auch Ihr Netzwerk und der WR leiden unter zu häufigen Zugriffen.
+4. Nun können Sie Basis Werte für Port 1 (P1) und Port 2 eingeben. Sie haben hierfür zwei Eingabefelder. Wenn Sie die Werte leer lassen, wird die Integration versuchen, bereits früher eingegebene Werte zu finden und diese zu benutzen. Wenn Sie noch nie Werte eingegeben haben, wird der Basis Wert 0 für P1 und P2 angenommen. Diese Basiswerte werden zu den Total Energiewerten von P1 und P2 addiert. Der Wechselrichter hat intern keinen Gesamtspeicher für beide Porst sondern er hat nur getrennte Register für die jeweiligen Ports. Deshalb müssen Sie die Offsets auch getrennt eingeben. Wenn Sie das nicht interessiert, können Sie das Offset auch einfach auf P1 eingeben und P2 leer lassen. Die Summe wird dies nicht verändern. Zukünftige Overflows erhöhen intern automatisch die Basis. Nur wenn etwas furchtbar schief laufen sollte, können Sie den Konfig-Flow wieder aktivieren und die Werte ggf. korrigieren.
+
+Fertig! Viel Freude mit der verbesserten Integration.
 
 [commits-shield]: https://img.shields.io/github/commit-activity/y/AndyNew2/hacs-APsystemsEZ1_local.svg?style=for-the-badge
 [commits]: https://github.com/AndyNew2/hacs-APsystemsEZ1_local/commits/master
