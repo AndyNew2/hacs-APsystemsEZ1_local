@@ -1,0 +1,87 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Gerät ist bereits konfiguriert!"
+        },
+        "error": {
+            "cannot_connect": "Verbindung kann nicht aufgebaut werden!"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "base_produced_p1": "Basis produziert P1 (kWh)",
+                    "base_produced_p2": "Basis produziert P2 (kWh)",
+                    "ip_address": "IP-Adresse",
+                    "port": "Port",
+                    "update_interval": "Update-Intervall (Sekunden)"
+                },
+                "data_description": {
+                    "base_produced_p1": "Kompensation des Microinverter Fehlers. Reset auf 0 wird kompensiert nach 240-260kWh. Dies ist für Port 1",
+                    "base_produced_p2": "Kompensation des Microinverter Fehlers für Port 2. Jeder Port wird separat kompensiert. Weitere Overruns kompensiert die Integration für sich alleine.",
+                    "port": "Standard port is 8050. Fall nicht gesetzt, wird dies benutzt.",
+                    "update_interval": "Update Zykluszeit in Sekunden. Standard sind 15 Sekunden. Zu kleine Werte (<10) belasten das Home Assistand Entries management und belastet den Micro Inverter und Ihr Netzwerk."
+                }
+            }
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "dc_1_short_circuit_error_status": {
+                "name": "DC 1 Kurzschluss Fehlerstatus"
+            },
+            "dc_2_short_circuit_error_status": {
+                "name": "DC 2 Kurzschluss Fehlerstatus"
+            },
+            "off_grid_status": {
+                "name": "Stromnetz Status"
+            },
+            "output_fault_status": {
+                "name": "Output fault Status"
+            }
+        },
+        "number": {
+            "max_output": {
+                "name": "Maximal Leistung"
+            }
+        },
+        "sensor": {
+            "lifetime_production": {
+                "name": "Gesamt Energieproduktion"
+            },
+            "lifetime_production_p1": {
+                "name": "Energieproduktion P1"
+            },
+            "lifetime_production_p2": {
+                "name": "Energieproduktion P2"
+            },
+            "today_production": {
+                "name": "Tagesproduktion Gesamt"
+            },
+            "today_production_p1": {
+                "name": "Tagesproduktion P1"
+            },
+            "today_production_p2": {
+                "name": "Tagesproduktion P2"
+            },
+            "total_power": {
+                "name": "Gesamtleistung"
+            },
+            "total_power_p1": {
+                "name": "Leistung P1"
+            },
+            "total_power_p2": {
+                "name": "Leistung P2"
+            }
+        },
+        "switch": {
+            "inverter_status": {
+                "name": "Inverter Zustand"
+            }
+        }
+    },
+    "exceptions": {
+        "inverter_error": {
+            "message": "Inverter hat einen Fehler zurückgegeben."
+        }
+    }
+}
