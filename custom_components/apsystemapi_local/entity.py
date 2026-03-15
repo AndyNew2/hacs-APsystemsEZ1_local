@@ -35,4 +35,5 @@ class ApSystemsEntity(Entity):
             model="EZ1-M",
             serial_number=data.device_id,
             sw_version=sw_version,
+            model_id="Host: "+data.coordinator.api.base_url,
         )
