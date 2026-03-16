@@ -15,6 +15,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DEFAULT_PORT, DOMAIN, UPDATE_INTERVAL, BASE_PRODUCED_P1, BASE_PRODUCED_P2
 
+import logging
+_LOGGER = logging.getLogger(__name__)
+
 DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_IP_ADDRESS): cv.string,
@@ -67,6 +70,7 @@ class APsystemsLocalAPIFlow(ConfigFlow, domain=DOMAIN):
                         BASE_PRODUCED_P2: user_input.get(BASE_PRODUCED_P2, 0)
                     }
                 await _store.async_save(_sData)
+                # await session.close() # seems HA do not like that
 
                 return self.async_create_entry(
                     title="Solar",
@@ -86,6 +90,8 @@ class APsystemsLocalAPIFlow(ConfigFlow, domain=DOMAIN):
         """Handle reconfigure step."""
         errors: dict[str, str] = {}
 
+        # _LOGGER.info("Reconfigure called with user input: %s", user_input)
+
         if user_input is not None:
             session = async_get_clientsession(self.hass, False)
             api = APsystemsEZ1M(
@@ -103,26 +109,65 @@ class APsystemsLocalAPIFlow(ConfigFlow, domain=DOMAIN):
                 # from info: Store is now a Generic class: self._store = Store[dict[str, int]](hass, STORAGE_VERSION, STORAGE_KEY)
                 _store = Store[dict[str, float]](self.hass, 1, f"{DOMAIN}_storage_{device_info.deviceId}")
                 _sData = await _store.async_load()
-                if _sData is not None:
-                    _sData =  {
-                        # use stored values if no user input, however user input always overwrites stored values
-                        BASE_PRODUCED_P1: user_input.get(BASE_PRODUCED_P1, _sData.get(BASE_PRODUCED_P1, 0)),
-                        BASE_PRODUCED_P2: user_input.get(BASE_PRODUCED_P2, _sData.get(BASE_PRODUCED_P2, 0))
-                    }
+                try:
+                    if _sData is not None:
+                        _sData =  {
+                            # use stored values if no user input, however user input always overwrites stored values
+                            BASE_PRODUCED_P1: float(user_input.get(BASE_PRODUCED_P1, _sData.get(BASE_PRODUCED_P1, 0))),
+                            BASE_PRODUCED_P2: float(user_input.get(BASE_PRODUCED_P2, _sData.get(BASE_PRODUCED_P2, 0)))
+                        }
+                    else:
+                        _sData =  {
+                            BASE_PRODUCED_P1: float(user_input.get(BASE_PRODUCED_P1, 0)),
+                            BASE_PRODUCED_P2: float(user_input.get(BASE_PRODUCED_P2, 0))
+                        }
+                    await _store.async_save(_sData)
+                except ValueError:
+                    _LOGGER.error("Value error while parsing base produced power. User input must be a float number in kWh.")
+                    errors[BASE_PRODUCED_P1] = "invalid value for base produced power. Must be a float number in kWh."
+                    errors[BASE_PRODUCED_P2] = "invalid value for base produced power. Must be a float number in kWh."
                 else:
-                    _sData =  {
-                        BASE_PRODUCED_P1: user_input.get(BASE_PRODUCED_P1, 0),
-                        BASE_PRODUCED_P2: user_input.get(BASE_PRODUCED_P2, 0)
-                    }
-                await _store.async_save(_sData)
+                    return self.async_update_reload_and_abort(
+                        self._get_reconfigure_entry(),
+                        data_updates=user_input
+                    )
 
-                return self.async_update_reload_and_abort(
-                    self._get_reconfigure_entry(),
-                    data_updates=user_input,
-                )
+        ip_configured = self._get_reconfigure_entry().data.get(CONF_IP_ADDRESS)
+        port_configured = self._get_reconfigure_entry().data.get(CONF_PORT, DEFAULT_PORT)
+        update_interval_configured = self._get_reconfigure_entry().data.get(UPDATE_INTERVAL, 15)
+        base_produced_p1_configured:float = self._get_reconfigure_entry().data.get(BASE_PRODUCED_P1, "")
+        base_produced_p2_configured:float = self._get_reconfigure_entry().data.get(BASE_PRODUCED_P2, "")
+
+        session = async_get_clientsession(self.hass, False)
+        api = APsystemsEZ1M(
+            ip_address=ip_configured,
+            port=port_configured,
+            session=session,
+        )
+        device_info = None
+        try:
+            device_info = await api.get_device_info()
+        except:
+            pass  # we ignore here any errors, device info will be just none
+        # await session.close() # seems HA do not like that
+
+        # from info: Store is now a Generic class: self._store = Store[dict[str, int]](hass, STORAGE_VERSION, STORAGE_KEY)
+        _store = Store[dict[str, float]](self.hass, 1, f"{DOMAIN}_storage_{device_info.deviceId}")
+        _sData = await _store.async_load()
+        if _sData is not None:
+            base_produced_p1_configured=(_sData.get(BASE_PRODUCED_P1, base_produced_p1_configured))
+            base_produced_p2_configured=(_sData.get(BASE_PRODUCED_P2, base_produced_p2_configured))
 
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=DATA_SCHEMA,
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_IP_ADDRESS, default=ip_configured): cv.string,
+                    vol.Optional(CONF_PORT, default=port_configured): cv.port,
+                    vol.Optional(UPDATE_INTERVAL, default=update_interval_configured): int,
+                    vol.Optional(BASE_PRODUCED_P1, default=base_produced_p1_configured): cv.string,   # due to a bug in HA, we need here a string instead of float, subject to change
+                    vol.Optional(BASE_PRODUCED_P2, default=base_produced_p2_configured): cv.string
+                }
+            ),
             errors=errors,
         )
