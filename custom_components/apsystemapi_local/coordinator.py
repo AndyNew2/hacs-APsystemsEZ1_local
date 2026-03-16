@@ -167,7 +167,7 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
                 _LOGGER.debug("Inverter returned an error, returning modified old data... (retrycounter: %d)", self.retrycounter)
                 return ApSystemsSensorData(output_data=self.old_output_data, alarm_info=self.old_alarm_info)
             elif (self.retrycounter > 5):
-                _LOGGER.info("Inverter returned an error, raising exception... (retrycounter: %d)", self.retrycounter)
+                _LOGGER.debug("Inverter returned an error, raising exception... (retrycounter: %d)", self.retrycounter)
                 raise UpdateFailed(
                     translation_domain=DOMAIN, translation_key="inverter_error"
                 ) from None
