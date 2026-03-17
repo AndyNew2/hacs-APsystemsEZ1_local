@@ -26,7 +26,6 @@ _LOGGER = logging.getLogger(__name__)
 @dataclass
 class ApSystemsSensorData:
     """Representing different Apsystems sensor data."""
-
     output_data: ReturnOutputData
     alarm_info: ReturnAlarmInfo
 
@@ -34,7 +33,6 @@ class ApSystemsSensorData:
 @dataclass
 class ApSystemsData:
     """Store runtime data."""
-
     coordinator: ApSystemsDataCoordinator
     device_id: str
 
