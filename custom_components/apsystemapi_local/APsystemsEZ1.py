@@ -390,10 +390,10 @@ class APsystemsEZ1M:
             raise ValueError(
                 f"Invalid setMaxPower value: expected int between '30' and '800', got '{power_limit}'"
             )
+        self.saved_max_power = power_limit  # we store the value anyway, because if set fails (inverter off or unavailable) we restore the saved value on reactivation.
         request = await self._request(f"setMaxPower?p={power_limit}")
         if request:
-            self.saved_max_power = int(request["data"]["maxPower"])
-            return self.saved_max_power
+            return int(request["data"]["maxPower"])
         else:
             return None
 
