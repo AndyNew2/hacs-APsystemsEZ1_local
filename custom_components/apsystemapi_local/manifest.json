@@ -1,7 +1,7 @@
 {
   "domain": "apsystemsapi_local",
   "name": "APsystems Local API",
-  "codeowners": ["@mawoka-myblock", "@SonnenladenGmbH"],
+  "codeowners": ["@AndyNew2", "@mawoka-myblock", "@SonnenladenGmbH"],
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/apsystems",
   "integration_type": "device",
