@@ -7,10 +7,13 @@ import asyncio
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntity, NumberMode
 from homeassistant.const import UnitOfPower
-from homeassistant.core import HomeAssistant
+from homeassistant.core import DOMAIN, HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import DiscoveryInfoType
 from homeassistant.util import timedelta
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+)
 
 from .coordinator import ApSystemsConfigEntry, ApSystemsData
 from .entity import ApSystemsEntity
@@ -26,10 +29,54 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor platform."""
 
-    add_entities([ApSystemsMaxOutputNumber(config_entry.runtime_data)], True)
+    maxOutputEntity = ApSystemsMaxOutputNumber(config_entry.runtime_data)
+    config_entry.runtime_data.slow_coordinator.setMaxOutPutEntity(maxOutputEntity)
+    add_entities([maxOutputEntity], True)
 
 
-class ApSystemsMaxOutputNumber(ApSystemsEntity, NumberEntity):
+# class APSystemsNumberCoordinator(DataUpdateCoordinator):
+#    """My custom coordinator."""
+#
+#    def __init__(
+#        self,
+#        hass: HomeAssistant,
+#        config_entry,
+#        update_interval,
+#        data: ApSystemsData,
+#        add_entities: AddConfigEntryEntitiesCallback,
+#    ) -> None:
+#        """Initialize my coordinator."""
+#        super().__init__(
+#            hass,
+#            _LOGGER,
+#            # Name of the data. For logging purposes.
+#            name=DOMAIN,
+#            config_entry=config_entry,
+#            update_interval=update_interval,
+#            always_update=True,
+#        )
+#        self._coord = data.coordinator
+#        self._maxOutputNumber = ApSystemsMaxOutputNumber(self, data)
+#        add_entities([self._maxOutputNumber], True)
+#        _LOGGER.debug("APSystemsNumberCoordinator: Created...")
+#
+#    async def _async_setup(self):
+#        """Handle initial setup tasks."""
+#        _LOGGER.debug("APSystemsNumberCoordinator: _async_setup...")
+#        pass
+#
+#    async def _async_update_data(self) -> None:
+#        """Fetch data from API endpoint.
+#
+#        This is the place to pre-process the data to lookup tables
+#        so entities can quickly look up their data.
+#        """
+#        _LOGGER.debug("APSystemsNumberCoordinator: Updating max output number...")
+#        await self._maxOutputNumber.async_update()  # Update the max output number as part of the coordinator's update cycle
+
+
+
+class ApSystemsMaxOutputNumber(CoordinatorEntity, ApSystemsEntity, NumberEntity):
     """Base sensor to be used with description."""
 
     _attr_native_step = 1
@@ -43,11 +90,14 @@ class ApSystemsMaxOutputNumber(ApSystemsEntity, NumberEntity):
         data: ApSystemsData,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(data)
+        CoordinatorEntity.__init__(self,
+            coordinator=data.slow_coordinator
+        )
+        ApSystemsEntity.__init__(self,
+            data=data
+        )
         self._api = data.coordinator.api
-        self._coordinator = data.coordinator
-        # there is no own coordinator for numbers and switch, therefore they run with default from HA = 30 seconds. Nothing to control here.
-        # This is good enough for these two values, therefore no further effort to this ...
+        self._coordinator = data.coordinator   # has the lock we need
         self._attr_unique_id = f"{data.device_id}_output_limit"
         self._attr_native_max_value = data.coordinator.api.max_power
         self._attr_native_min_value = data.coordinator.api.min_power
@@ -56,25 +106,16 @@ class ApSystemsMaxOutputNumber(ApSystemsEntity, NumberEntity):
         """Set the state with the value fetched from the inverter."""
 
         _LOGGER.debug("Updating max output number...")
-        counter: int = 0
-        while self._coordinator.currently_running:
-            await asyncio.sleep(0.8)  # Locking for poor people, but better than nothing...
-            counter += 1  # usually we could stop updating, however maxout is rearly updated, therefore give it a little retry ..
-            if counter > 4:  # After 3.2 seconds of waiting, give up
-                _LOGGER.debug("Update already running, skipping max_power...")
-                return # Skip update if coordinator is currently running an update
+        # locking is done by coordinator, nothing to do here
 
         try:
-            self._coordinator.currently_running = True  # Set coordinator to running state to prevent concurrent updates
             status = await self._api.get_max_power()
         except:
-            _LOGGER.debug("Cannot update max power. Retry next cycle...")
+            _LOGGER.debug("Exception update max power. Retry next cycle...")
             self._attr_available = False
         else:
             self._attr_available = True
             self._attr_native_value = status
-        finally:
-            self._coordinator.currently_running = False  # Reset running state on error
 
     async def async_set_native_value(self, value: float) -> None:
         """Set the desired output power."""
@@ -92,6 +133,7 @@ class ApSystemsMaxOutputNumber(ApSystemsEntity, NumberEntity):
             self._coordinator.currently_running = True  # Set coordinator to running state to prevent concurrent updates
             self._attr_native_value = await self._api.set_max_power(int(value))
             self._attr_available = True
+            self.async_write_ha_state()
         except:
             _LOGGER.error("Error while setting max power.")
             self._attr_available = False
