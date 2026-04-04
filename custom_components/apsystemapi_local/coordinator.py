@@ -17,16 +17,20 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import _LOGGER, HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, LOGGER, BASE_PRODUCED_P1, BASE_PRODUCED_P2
+from .const import DOMAIN, LOGGER, BASE_PRODUCED_P1, BASE_PRODUCED_P2, DAILY_DEBOUNCE_P1, DAILY_DEBOUNCE_P2
 
 
 import logging
+
 _LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class ApSystemsSensorData:
     """Representing different Apsystems sensor data."""
+
     output_data: ReturnOutputData
     alarm_info: ReturnAlarmInfo
 
@@ -34,15 +38,36 @@ class ApSystemsSensorData:
 @dataclass
 class ApSystemsData:
     """Store runtime data."""
+
     coordinator: ApSystemsDataCoordinator
     device_id: str
     slow_coordinator: APSystemsSlowUpdateCoordinator
 
+
 type ApSystemsConfigEntry = ConfigEntry[ApSystemsData]
+
+"""
+# for information class is not actually used
+class StoreApsystemsData:
+    ""Store persistent data.""
+
+    def __init__(
+        self,
+        total_produced_port1: float,
+        total_produced_port2: float,
+        day_produced_port1: float,
+        day_produced_port2: float,
+    ) -> None:
+        self.total_produced_p1: float = total_produced_port1
+        self.total_produced_p2: float = total_produced_port2
+        self.day_produced_p1: float = day_produced_port1
+        self.day_produced_p2: float = day_produced_port2
+"""
 
 
 from .number import ApSystemsMaxOutputNumber
 from .switch import ApSystemsInverterSwitch
+
 
 class APSystemsSlowUpdateCoordinator(DataUpdateCoordinator):
     """My custom coordinator."""
@@ -52,7 +77,7 @@ class APSystemsSlowUpdateCoordinator(DataUpdateCoordinator):
         hass: HomeAssistant,
         config_entry,
         update_interval: int,
-        coordinator: ApSystemsDataCoordinator
+        coordinator: ApSystemsDataCoordinator,
     ) -> None:
         """Initialize my coordinator."""
         super().__init__(
@@ -100,21 +125,25 @@ class APSystemsSlowUpdateCoordinator(DataUpdateCoordinator):
 
         counter: int = 0
         while self._coordinator.currently_running:
-            await asyncio.sleep(0.7)  # Locking for poor people, but better than nothing...
+            await asyncio.sleep(
+                0.7
+            )  # Locking for poor people, but better than nothing...
             counter += 1  # usually we could stop updating, however maxout is rearly updated, therefore give it a little retry ..
             if counter > 4:  # After 2.8 seconds of waiting, give up
                 _LOGGER.debug("Update already running, skipping slow data...")
-                return # Skip update if coordinator is currently running an update
+                return  # Skip update if coordinator is currently running an update
 
         try:
-            self._coordinator.currently_running = True  # Set coordinator to running state to prevent concurrent updates
+            self._coordinator.currently_running = (
+                True  # Set coordinator to running state to prevent concurrent updates
+            )
 
-            if (self._toggleCounter%2==1):
+            if self._toggleCounter % 2 == 1:
                 await self._maxOutputNumber.async_update()  # Update the max output number as part of the coordinator's update cycle
             else:
                 await self._powerSwitch.async_update()
 
-            self._toggleCounter+=1
+            self._toggleCounter += 1
         except:
             _LOGGER.debug("Exception while update slow data. Retry next cycle...")
         finally:
@@ -136,7 +165,6 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
         interval: int = 5,
         base_produced_p1: float = 0,
         base_produced_p2: float = 0,
-        _store: Store[dict[str, float]] = None
     ) -> None:
         """Initialize my coordinator."""
         super().__init__(
@@ -147,26 +175,24 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
             update_interval=timedelta(seconds=interval),
         )
         self.api = api
-        self.base_produced_p1 = base_produced_p1
-        self.base_produced_p2 = base_produced_p2
+        self.base_produced_p1: float = base_produced_p1
+        self.base_produced_p2: float = base_produced_p2
+        self.base_day_p1: float = 0
+        self.base_day_p2: float = 0
         self.last_tp1: float = 0
         self.last_tp2: float = 0
+        self.last_dayp1: float = 0
+        self.last_dayp2: float = 0
+        self.last_update_day = 0
         self.retrycounter: int = 0
-        self._store = _store
+        # from info: Store is now a Generic class: self._store = Store[dict[str, int]](hass, STORAGE_VERSION, STORAGE_KEY)
+        self._store = Store[dict[str, float]](self.hass, 1, f"{DOMAIN}_storage_{self.config_entry.unique_id}")
         self.updateCounter: int = 0
         self.old_output_data = ReturnOutputData(
-            p1=0,
-            e1=10,
-            te1=20,
-            p2=0,
-            e2=11,
-            te2=22
+            p1=0, e1=10, te1=20, p2=0, e2=11, te2=22
         )
         self.old_alarm_info = ReturnAlarmInfo(
-                offgrid=False,
-                shortcircuit_1=False,
-                shortcircuit_2=False,
-                operating=True
+            offgrid=False, shortcircuit_1=False, shortcircuit_2=False, operating=True
         )
         self.currently_running: bool = False
 
@@ -187,6 +213,19 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
         self.device_version = device_info.devVer
         self.battery_system = device_info.isBatterySystem
 
+        _LOGGER.info("Unique ID: %s", self.config_entry.unique_id)
+        _rData = await self._store.async_load()
+        if _rData is not None:
+            # if there is stored data use it, otherwise use configured ones from config flow, is 0 if not provided
+            self.base_produced_p1 = _rData.get(BASE_PRODUCED_P1, self.base_produced_p1)
+            self.base_produced_p2 = _rData.get(BASE_PRODUCED_P2, self.base_produced_p2)
+            self.base_day_p1 = _rData.get(DAILY_DEBOUNCE_P1, 0)
+            self.base_day_p2 = _rData.get(DAILY_DEBOUNCE_P2, 0)
+            _LOGGER.info("Loaded data from storage: %s, p1: %f, p2: %f, day_p1: %f, day_p2: %f",
+                _rData, self.base_produced_p1, self.base_produced_p2, self.base_day_p1, self.base_day_p2)
+        self.last_update_day = dt_util.now().day
+
+
     async def _async_update_data(self) -> ApSystemsSensorData:
         # _LOGGER.info("Starting data update...")
         if self.currently_running:
@@ -194,44 +233,75 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
             return ApSystemsSensorData(output_data=self.old_output_data, alarm_info=self.old_alarm_info)
         try:
             self.currently_running = True
-            if (self.retrycounter>7) and ((self.retrycounter % 5) != 0):
+            if (self.retrycounter > 7) and ((self.retrycounter % 5) != 0):
                 # After 7 unavailable cycles, reduce update rate, since micro inverter is very likely off and cannot response anyhow.
                 self.retrycounter += 1
                 return ApSystemsSensorData(output_data=self.old_output_data, alarm_info=self.old_alarm_info)
             output_data = await self.api.get_output_data()
             self.updateCounter += 1
-            resetDetected:bool = False
-            if (output_data.te1 < (self.last_tp1-100)):
+            resetDetected: bool = False
+            # 1st check total values
+            if output_data.te1 < (self.last_tp1 - 100):
                 # This means that the inverter has been reset, so we update the base produced values
                 self.base_produced_p1 += self.last_tp1
                 resetDetected = True
-            elif (output_data.te1 < self.last_tp1):
+            elif output_data.te1 < self.last_tp1:
                 # inverter rounding issue, ignore this value and use old one
                 output_data.te1 = self.last_tp1
             else:
                 self.last_tp1 = output_data.te1
-            if (output_data.te2 < (self.last_tp2-100)):
+            if output_data.te2 < (self.last_tp2 - 100):
                 # This means that the inverter has been reset, so we update the base produced values
                 self.base_produced_p2 += self.last_tp2
                 resetDetected = True
-            elif (output_data.te2 < self.last_tp2):
+            elif output_data.te2 < self.last_tp2:
                 # inverter rounding issue, ignore this value and use old one
                 output_data.te2 = self.last_tp2
             else:
                 self.last_tp2 = output_data.te2
 
-            if (resetDetected and self._store is not None):
-                _sData =  {
+            # 2nd check day values - start with day reset check
+            if (self.last_update_day != dt_util.now().day):
+                self.last_update_day = dt_util.now().day
+                self.base_day_p1 = -self.last_dayp1  # we need to substract startvalue of daystart to start with a 0 at 00:00
+                self.base_day_p2 = -self.last_dayp2
+                resetDetected = True
+            else:
+                if output_data.e1 < (self.last_dayp1 - 0.01):  # we assume a day production is bigger than 0.01 kWh, if not detection will fail. But this is no further issue
+                    # This means that the day production has been reset, so we update the base day produced values
+                    self.base_day_p1 += self.last_dayp1
+                    resetDetected = True
+                elif output_data.e1 < self.last_dayp1:
+                    # inverter rounding issue, ignore this value and use old one
+                    output_data.e1 = self.last_dayp1
+                else:
+                    self.last_dayp1 = output_data.e1
+                if output_data.e2 < (self.last_dayp2 - 0.01):
+                    # This means that the day production has been reset, so we update the base day produced values
+                    self.base_day_p2 += self.last_dayp2
+                    resetDetected = True
+                elif output_data.e2 < self.last_dayp2:
+                    # inverter rounding issue, ignore this value and use old one
+                    output_data.e2 = self.last_dayp2
+                else:
+                    self.last_dayp2 = output_data.e2
+
+            if resetDetected and self._store is not None:
+                _sData = {
                     BASE_PRODUCED_P1: self.base_produced_p1,
-                    BASE_PRODUCED_P2: self.base_produced_p2
+                    BASE_PRODUCED_P2: self.base_produced_p2,
+                    DAILY_DEBOUNCE_P1: self.base_day_p1,
+                    DAILY_DEBOUNCE_P2: self.base_day_p2,
                 }
                 await self._store.async_save(_sData)
 
             output_data.te1 += self.base_produced_p1
             output_data.te2 += self.base_produced_p2
+            output_data.e1 += self.base_day_p1
+            output_data.e2 += self.base_day_p2
             self.old_output_data = output_data
 
-            if (self.updateCounter % 5 == 0):
+            if self.updateCounter % 5 == 0:
                 alarm_info = await self.api.get_alarm_info()
                 self.old_alarm_info = alarm_info
             else:
@@ -239,21 +309,34 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
 
         except InverterReturnedError:
             self.retrycounter += 1
-            if (self.retrycounter > 7):
+            if self.retrycounter > 7:
                 # After 7 unavailable cycles, micro inverter is off, prevent further logs, they are useless
                 self.old_output_data.p1 = 0
                 self.old_output_data.p2 = 0
-                _LOGGER.debug("Inverter returned an error, returning modified old data... (retrycounter: %d)", self.retrycounter)
-                return ApSystemsSensorData(output_data=self.old_output_data, alarm_info=self.old_alarm_info)
-            elif (self.retrycounter > 5):
-                _LOGGER.debug("Inverter returned an error, raising exception... (retrycounter: %d)", self.retrycounter)
+                _LOGGER.debug(
+                    "Inverter returned an error, returning modified old data... (retrycounter: %d)",
+                    self.retrycounter,
+                )
+                return ApSystemsSensorData(
+                    output_data=self.old_output_data, alarm_info=self.old_alarm_info
+                )
+            elif self.retrycounter > 5:
+                _LOGGER.debug(
+                    "Inverter returned an error, raising exception... (retrycounter: %d)",
+                    self.retrycounter,
+                )
                 raise UpdateFailed(
                     translation_domain=DOMAIN, translation_key="inverter_error"
                 ) from None
             else:
                 # Otherwise we return old data
-                _LOGGER.debug("Inverter returned an error, returning old data... (retrycounter: %d)", self.retrycounter)
-                return ApSystemsSensorData(output_data=self.old_output_data, alarm_info=self.old_alarm_info)
+                _LOGGER.debug(
+                    "Inverter returned an error, returning old data... (retrycounter: %d)",
+                    self.retrycounter,
+                )
+                return ApSystemsSensorData(
+                    output_data=self.old_output_data, alarm_info=self.old_alarm_info
+                )
         finally:
             self.currently_running = False
 
