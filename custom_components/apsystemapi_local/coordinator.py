@@ -244,6 +244,7 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
             if output_data.te1 < (self.last_tp1 - 100):
                 # This means that the inverter has been reset, so we update the base produced values
                 self.base_produced_p1 += self.last_tp1
+                self.last_tp1 = output_data.te1  # reset last_tp1 to prevent further reset detections due to old value
                 resetDetected = True
             elif output_data.te1 < self.last_tp1:
                 # inverter rounding issue, ignore this value and use old one
@@ -253,6 +254,7 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
             if output_data.te2 < (self.last_tp2 - 100):
                 # This means that the inverter has been reset, so we update the base produced values
                 self.base_produced_p2 += self.last_tp2
+                self.last_tp2 = output_data.te2  # reset last_tp2 to prevent further reset detections due to old value
                 resetDetected = True
             elif output_data.te2 < self.last_tp2:
                 # inverter rounding issue, ignore this value and use old one
@@ -263,6 +265,8 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
             # 2nd check day values - start with day reset check
             if (self.last_update_day != dt_util.now().day):
                 self.last_update_day = dt_util.now().day
+                if output_data.e1 < (self.last_dayp1 - 0.01): self.last_dayp1 = output_data.e1 # if the day reset by chance happens exactly at the day reset, we need to update the last_dayp1 to prevent false reset value
+                if output_data.e2 < (self.last_dayp2 - 0.01): self.last_dayp2 = output_data.e2
                 self.base_day_p1 = -self.last_dayp1  # we need to substract startvalue of daystart to start with a 0 at 00:00
                 self.base_day_p2 = -self.last_dayp2
                 resetDetected = True
@@ -270,6 +274,7 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
                 if output_data.e1 < (self.last_dayp1 - 0.01):  # we assume a day production is bigger than 0.01 kWh, if not detection will fail. But this is no further issue
                     # This means that the day production has been reset, so we update the base day produced values
                     self.base_day_p1 += self.last_dayp1
+                    self.last_dayp1 = output_data.e1  # reset last_dayp1 to prevent further reset detections due to old value
                     resetDetected = True
                 elif output_data.e1 < self.last_dayp1:
                     # inverter rounding issue, ignore this value and use old one
@@ -279,6 +284,7 @@ class ApSystemsDataCoordinator(DataUpdateCoordinator[ApSystemsSensorData]):
                 if output_data.e2 < (self.last_dayp2 - 0.01):
                     # This means that the day production has been reset, so we update the base day produced values
                     self.base_day_p2 += self.last_dayp2
+                    self.last_dayp2 = output_data.e2  # reset last_dayp2 to prevent further reset detections due to old value
                     resetDetected = True
                 elif output_data.e2 < self.last_dayp2:
                     # inverter rounding issue, ignore this value and use old one
