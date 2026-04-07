@@ -40,6 +40,7 @@ Platform | Beschreibung
 8. Neuere Firmware-Versionen speichern nicht mehr die Maximal-Leistung des Wechselrichters. Über HA wird dies gerne zur Regelung im Zusammenhang eines Akkus genutzt. Diese Integration schreibt den letzten gültigen Maximal-Wert entweder beim Aufwachen am Morgen oder beim Wiedereinschalten. Das Schreiben wird nur dann ausgeführt, wenn der WR selbst die letzten Werte vergessen hat. Bei den alten WR wird kein Schreibzyklus ausgelöst, um dessen Flash-Speicher zu schonen.
 9. Die Alarminformationen werden nicht bei jedem Update-Zyklus gelesen, um die Updaterate zu verbessern.
 10. Die Updaterate kann wieder im Konfigurations-Dialog eingegeben werden. Die Integration unterstützt jetzt auch ein Reconfigure, damit kann man die Konfiguration ohne Löschen und neu anlegen korrigieren.
+11. Unterstützt eine neue API um detaillierte Daten (Spannungen, Ströme, Netzfrequenz, Netzspannungen, .. ) anzuzeigen.
 
 ## Installation
 
@@ -81,6 +82,12 @@ Erzeugen Sie ein Unterverzeichnis in homeassistant/custom_components
 4. Nun können Sie Basis Werte für Port 1 (P1) und Port 2 eingeben. Sie haben hierfür zwei Eingabefelder. Wenn Sie die Werte leer lassen, wird die Integration versuchen, bereits früher eingegebene Werte zu finden und diese zu benutzen. Wenn Sie noch nie Werte eingegeben haben, wird der Basis Wert 0 für P1 und P2 angenommen. Diese Basiswerte werden zu den Total Energiewerten von P1 und P2 addiert. Der Wechselrichter hat intern keinen Gesamtspeicher für beide Ports, sondern er hat nur getrennte Register für die jeweiligen Ports. Deshalb müssen Sie die Offsets auch getrennt eingeben. Wenn Sie das nicht interessiert, können Sie das Offset auch einfach auf P1 eingeben und P2 leer lassen. Die Summe wird dies nicht verändern. Zukünftige Overflows erhöhen intern automatisch die Basis. Nur wenn etwas furchtbar schief laufen sollte, können Sie den Konfig-Flow wieder aktivieren, und die Werte ggf. korrigieren.
 
 **Fertig! Viel Freude mit der verbesserten Integration.**
+
+
+## Hinweise
+- Diese Integration erneuert (updated) nicht alle Sensoren zur gleichen Zeit. Spannungs-, Strom- und Leistungswerte werden mit der eingegebenen Updaterate erneuert. Andere Werte, wie Ein/Aus Status, Maximalleistungseinstellungen, Alarme, etc. werden weniger häufig geupdated. Bitte nach dem Start der Integration etwas abwarten, es werden alle Sensoren aktiviert.
+- Der Persistente (im Flash Speicher) befindliche Maximal-Leistungswert kann in neueren Firmwareversionen nicht mehr häufig geschrieben werden. Dies ist eine Art Schutz, die sehr sinnvoll ist. Leider gibt der Wechelrichter hierzu keine passende Fehlermeldung, wodurch diese Integration nicht unterscheiden kann, warum das Schreiben nicht funktioniert hat. Falls das Schreiben nicht klappt, bitte etwas abwarten (ca. 45 Minuten). Auch wiederholte Versuche zählen als Schreibzugriff, wodurch diese Wartezeit verlängert wird. Also alles in Ruhe lassen und nach der angegebenen Zeit einen Schreibzugriff probieren, dann sollte es auch klappen.
+- Diese Integration nutzt standardmäßig die neue API mit genaueren Sensorwerten und dem neuen DefaultMaxPower Flash-Speicher. Sollte Ihr Wechelrichter Probleme mit der neuen API haben (weil Sie z.B. noch eine ältere Firmware <1.7.x) nutzen, können Sie im Konfigurationsdialog die neue API abschalten. Hierzu einfach den entsprechenden Schalter am Ende des Dialogs abwählen.
 
 [commits-shield]: https://img.shields.io/github/commit-activity/y/AndyNew2/hacs-APsystemsEZ1_local.svg?style=for-the-badge
 [commits]: https://github.com/AndyNew2/hacs-APsystemsEZ1_local/commits/master
