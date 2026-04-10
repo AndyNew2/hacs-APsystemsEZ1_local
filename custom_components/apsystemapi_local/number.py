@@ -62,6 +62,11 @@ class ApSystemsMaxOutputNumber(CoordinatorEntity, ApSystemsEntity, NumberEntity)
         self._attr_native_max_value = data.coordinator.api.max_power
         self._attr_native_min_value = data.coordinator.api.min_power
 
+    @property
+    def available(self) -> bool:
+        """Return if the entity is available."""
+        return self._attr_available or self._coordinator.use_api_v2   # in case of api2 we keep this number active, since we store the value internally
+
     async def async_update(self) -> None:
         """Set the state with the value fetched from the inverter."""
 
