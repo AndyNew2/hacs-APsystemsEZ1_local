@@ -1,0 +1,8 @@
+{
+  "name": "APsystems Local API",
+  "filename": "hacs-APsystems1EZ1_local.zip",
+  "content_in_root": false,
+  "render_readme": true,
+  "zip_release": true,
+  "homeassistant": "2026.11.0"
+}
